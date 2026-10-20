@@ -57,6 +57,6 @@ Projet réalisé dans le cadre du cours de Python de 2ᵉ année à l'ENSAE Pari
 
 - [FOGWOUNG DJOUFACK Sarah-Laure](https://github.com/Sarahlaure)
 - [NGUEMFOUO NGOUMTSA Célina](https://github.com/nncelina)
-- [ZAGHROUN Eytan](https://github.com/Eythan-ZG)
+- [ZAGHROUN Eytan](https://github.com/Eytan-ZG)
 
 ## Usage d'outils d'IA
