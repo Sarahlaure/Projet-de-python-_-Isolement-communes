@@ -1,118 +1,97 @@
+# Isolement des communes de la France métropolitaine
+
+> À quelle distance de chez soi trouve-t-on les services du quotidien, quelles communes sont les plus éloignées de tout, et la réponse dépend-elle de la façon de mesurer ?
+
 Projet du cours **Python pour la data science** (ENSAE Paris, 2ᵉ année). Chargé de TD : M. DEREPAS Alban.
 
-# Isolement des communes françaises
+[Rapport en ligne](https://sarahlaure.github.io/isolement-communes-livre/) · [Notebook](rapport.ipynb) · [Tableau de bord](dashboard/index.html) ·
 
-> À quelle distance de chez soi trouve-t-on les services du quotidien, et quelles communes sont les plus éloignées de tout ?
+Nous mesurons, pour chacune des 34 788 communes et arrondissements de France métropolitaine, la distance à 19 services de base (boulangerie, pharmacie, médecin, école, poste, gare, urgences, maternité…) à partir de la Base permanente des équipements (BPE) 2025 de l'INSEE. Nous résumons ces distances par **trois indices d'isolement** (méthodes A, B et C), que nous cartographions, comparons entre eux et mettons en relation avec la densité de population et le revenu.
 
-Nous mesurons, pour chacune des 34 788 communes et arrondissements de France métropolitaine, la distance à 19 services de base (boulangerie, pharmacie, médecin, école, poste, gare, urgences, maternité…) à partir de la Base permanente des équipements (BPE) 2025 de l'INSEE. Nous résumons ces distances dans un indice d'isolement, que nous cartographions et comparons à la densité de population et au revenu.
-
-**Le rapport complet est en ligne : [sarahlaure.github.io/isolement-communes-livre](https://sarahlaure.github.io/isolement-communes-livre/).** Le notebook [`rapport.ipynb`](rapport.ipynb) contient l'analyse exécutable.
+**Le rapport complet est en ligne : [sarahlaure.github.io/isolement-communes-livre](https://sarahlaure.github.io/isolement-communes-livre/).** Le notebook [`rapport.ipynb`](rapport.ipynb) contient l'analyse exécutable, et le dossier [`dashboard/`](dashboard/) un tableau de bord interactif.
 
 ## Question de recherche et hypothèses
 
-> Quelles communes sont les plus éloignées des services de base, et cet isolement va-t-il de pair avec une faible densité et un faible revenu ?
+> Quelles communes sont les plus éloignées des services de base ? Cet isolement va-t-il de pair avec une faible densité et un faible revenu ? Et ces conclusions dépendent-elles de la manière de mesurer l'isolement ?
 
 | | Hypothèse | Résultat |
 |---|---|---|
-| H1 | Les distances sont très asymétriques : la plupart des communes sont proches, une minorité est très éloignée. | Non confirmée : médiane et moyenne sont très proches pour presque tous les services. |
-| H2 | Plus une commune est peu dense, plus elle est isolée. | Confirmée : ρ de Spearman = −0,84. |
-| H3 | L'isolement est lié au revenu médian. | Partiellement confirmée : lien faible (ρ = −0,22), qui vient surtout de la densité. |
-| H4 | Le classement ne dépend pas des choix de méthode. | Confirmée : corrélations de Spearman supérieures à 0,9 entre les 12 indices. |
+| H1 | L'isolement est très inégal : la plupart des habitants sont proches des services, une minorité de communes en est très éloignée. | Partiellement confirmée : l'inégalité oppose surtout les équipements rares aux services du quotidien, et le nombre de communes au nombre d'habitants. |
+| H2 | Plus une commune est peu dense, plus elle est isolée. | Confirmée avec les trois méthodes : ρ de Spearman = −0,84 (A), −0,83 (B), −0,84 (C). |
+| H3 | L'isolement est lié au revenu médian. | Dépend de la méthode : faible et porté par la densité avec A et B (ρ ≈ −0,21), plus net avec C (ρ = −0,31), où il subsiste à densité comparable. |
+| H4 | Le classement dépend peu de la méthode. | Confirmée pour le classement d'ensemble (Spearman de 0,98 entre A et B, 0,95 entre B et C), moins pour la liste des communes les plus isolées. |
 
-## Méthodologie
+## Les trois méthodes
 
-1. **Panier de services** : 33 types d'équipements de la BPE regroupés en 19 services (dictionnaire `SERVICES` dans [`src/prepare_bpe.py`](src/prepare_bpe.py)).
-2. **Distance** : pour chaque commune et chaque service, 0 si la commune possède le service ; sinon, distance à vol d'oiseau (Lambert-93) entre son centre et l'équipement le plus proche.
-3. **Indice** : logarithme de la distance, standardisation par service, moyenne pondérée. Quatre jeux de poids (égaux, services vitaux, équilibre par thème, première composante de l'ACP) et trois règles de distance, soit 12 indices comparés par la corrélation de Spearman.
-4. **Analyses** : distributions, population éloignée d'un service, cartes, lien avec la densité et le revenu (Spearman, Kruskal-Wallis), typologie en quatre groupes (k-means).
-Le détail des choix est dans le rapport en ligne et dans [`docs/DATA_GUIDE.md`](docs/DATA_GUIDE.md).
+| | Méthode A | Méthode B | Méthode C |
+|---|---|---|---|
+| Point de départ | centroïde de la commune | chef-lieu de la commune | chef-lieu de la commune |
+| Service présent dans la commune | distance mise à 0 | distance réelle | distance réelle |
+| Agrégation | 19 services de poids égal | 19 services pondérés par une grille (essentialité, fréquence d'usage, public concerné) | 6 grands besoins de poids égal |
+
+Dans tous les cas, la distance est à vol d'oiseau (Lambert-93), transformée par un logarithme `ln(1 + d)` puis standardisée service par service (ou besoin par besoin) avant d'être moyennée. Nous retenons **B comme indicateur de référence** pour l'accès aux services du quotidien et **C comme éclairage complémentaire** sur l'accès aux grands équipements (gare, hôpital, lycée).
+
+Pour tester la robustesse, nous comparons aussi 30 variantes (2 points de départ, 3 règles de distance, 5 jeux de poids). Le détail des choix est dans le rapport en ligne.
 
 ## Données
 
-| Source | Fichier | Téléchargement |
+| Source | Fichier | Récupération |
 |---|---|---|
-| INSEE, [BPE 2025](https://www.insee.fr/fr/statistiques/8217525) | `BPE25.parquet` et 4 fichiers de documentation | automatique (`src/download.py`) |
-| INSEE / data.gouv | Population municipale 2023, géographie 2025 | à la main |
-| IGN, [Admin Express](https://geoservices.ign.fr/adminexpress) | Contours COG 2025 (couches `COMMUNE` et `ARRONDISSEMENT_MUNICIPAL`) | à la main |
-| INSEE | Filosofi, niveau de vie médian par commune (`MED_SL`) | à la main |
+| INSEE, [BPE 2025](https://www.insee.fr/fr/statistiques/8217525) | `BPE25.parquet` et 4 fichiers de documentation | automatique |
+| IGN, [Admin Express](https://geoservices.ign.fr/adminexpress) | contours COG 2025 et position des chefs-lieux (archive `.7z`, ~245 Mo, GeoPackage de ~1,1 Go) | automatique |
+| INSEE | populations de référence 2023 (géographie 2025), `ensemble.xlsx` | automatique |
+| INSEE | Filosofi 2023, niveau de vie médian par commune (`MED_SL`), via l'API Melodi | automatique |
 
-Les trois fichiers à récupérer à la main se placent dans `data/raw/`. La commande `python src/download.py` rappelle où les trouver et quoi choisir. Les données brutes ne sont pas versionnées (fichiers lourds). Les sources sont publiées sous licence ouverte.
+Toutes les données sont téléchargées par [`src/download.py`](src/download.py), que le notebook appelle. 
 
 ## Structure du dépôt
 
 ```
 .
 ├── README.md
-├── requirements.txt        bibliothèques nécessaires
+├── requirements.txt        bibliothèques nécessaires (dont py7zr)
 ├── rapport.ipynb           le rapport : appelle src/ et raconte l'analyse
 ├── src/
-│   ├── download.py         télécharge les fichiers INSEE dans data/raw/
-│   ├── inspect_bpe.py      inspecte la BPE (colonnes, codes du panier)
+│   ├── download.py         télécharge toutes les données dans data/raw/
 │   ├── prepare_bpe.py      filtre la BPE sur le panier, écrit data/interim/
-│   ├── communes.py         table des communes (centre, surface, population)
+│   ├── communes.py         table des communes (centroïde, chef-lieu, surface, population)
 │   ├── distances.py        présence des services et distances
-│   ├── indice.py           indice d'isolement
+│   ├── indice.py           indices, grille experte, besoins
 │   ├── descriptif.py       statistiques descriptives
-│   └── analyse.py          revenu, corrélations, tests, typologie
-├── tests/                  tests automatiques (pytest)
-├── docs/
-│   ├── DATA_GUIDE.md       sources, fusions, pièges
-│   └── WORKFLOW_GIT.md     organisation du travail à trois
+│   └── analyse.py          revenu, corrélations, tests
+├── figures/                figures enregistrées par le notebook
+├── dashboard/
+│   └── index.html          tableau de bord interactif (un seul fichier, hors ligne)
 └── data/
     ├── raw/                données brutes, jamais modifiées (non versionnées)
     ├── interim/            données nettoyées (non versionnées)
     └── processed/          tableaux finaux, une ligne par commune (non versionnés)
 ```
 
-## Reproduire les résultats
+## Tableau de bord interactif
 
-```bash
-# 1. Récupérer le code
-git clone https://github.com/Sarahlaure/Projet-de-python-_-Isolement-communes.git
-cd Projet-de-python-_-Isolement-communes
+Le dossier [`dashboard/`](dashboard/) contient `index.html`, un tableau de bord où les résultats et les contours des communes sont intégrés.
 
-# 2. Créer un environnement et installer les dépendances
-python -m venv .venv
-source .venv/bin/activate          # Windows : .venv\Scripts\activate
-pip install -r requirements.txt
-
-# 3. Télécharger les données INSEE (data/raw/)
-python src/download.py
-#    puis placer à la main dans data/raw/ : population, contours IGN, Filosofi
-
-# 4. Nettoyer la BPE (data/interim/equipements.parquet)
-python src/prepare_bpe.py
-
-# 5. Ouvrir le rapport et tout exécuter (Run All)
-jupyter lab
-```
-
-Lancer les tests : `pytest`.
+- **Vue d'ensemble** : répartition des équipements, services les plus représentés, distances d'accès.
+- **Indicateurs** : les méthodes A, B et C, avec une pondération égale, EFT ou personnalisée (curseurs), la carte de l'indice et le classement des communes, départements et régions les plus isolés.
+- **Comparaisons** : corrélations entre les méthodes, relation avec la densité, le revenu et la population.
+- **Explorer un territoire** : profil et carte d'une région, d'un département ou d'une commune.
+- **Données et téléchargements** : export Excel des indices par niveau géographique ou par service.
 
 ## Résultats principaux
 
-- 10 806 communes (31 %) n'ont aucun équipement du panier ; 59 % des communes ont un indice supérieur à la moyenne, mais elles ne regroupent que 9,9 % de la population.
-- Les services rares sont loin de beaucoup d'habitants : 53,1 % de la population vit à plus de 5 km d'une maternité, contre 0,46 % pour une école.
-- L'isolement est très fortement lié à la faible densité (ρ = −0,84) et beaucoup plus faiblement au niveau de vie (ρ = −0,22).
-- Une typologie en quatre groupes décrit un gradient, des pôles très bien desservis (64 % de la population dans 9 % des communes) au rural isolé (37 % des communes pour 4,3 % de la population).
-
-## Limites et quelques choix assumés
-
-- Distance **à vol d'oiseau**, pas par la route ni en temps de trajet.
-- La BPE mesure la **présence** d'un équipement, pas sa capacité ni ses horaires.
-- **France métropolitaine seulement** : les DROM utilisent d'autres systèmes de coordonnées.
-- Paris, Lyon et Marseille sont traitées **par arrondissement**, comme dans la BPE.
-- Instantané 2025 : l'INSEE déconseille de comparer les millésimes de la BPE.
-- Le niveau de vie n'est pas publié pour 11,4 % des communes, les plus isolées : l'analyse du revenu ne leur est pas applicable.
+- 10 806 communes (31 %) n'ont aucun des 33 équipements du panier.
+- 56 à 59 % des communes ont un indice supérieur à la moyenne selon la méthode, mais elles ne regroupent que 9 à 10 % de la population.
+- Les équipements rares sont loin de beaucoup d'habitants : 34 % de la population vit à plus de 10 km d'un hôpital et 14 % à plus de 10 km d'une gare, contre 0,5 % à plus de 5 km d'une école.
+- La commune médiane est à 5,7 km en moyenne pondérée de ses 19 services (méthode B).
+- Le point de départ de la distance pèse cinq fois plus sur le classement que les poids des services, et le regroupement en six besoins (C) pèse encore plus : seules 78 % des 10 % de communes les plus isolées sont communes à B et C.
 
 ## Équipe
 
-| Prénom NOM | GitHub |
-|---|---|
-| Sarah-Laure FOGWOUNG DJOUFACK | [Sarahlaure](https://github.com/Sarahlaure) |
-| Célina NGUEMFOUO NGOUMTSA | [nncelina](https://github.com/nncelina) |
-| Eytan ZAGHROUN | [Eytan-ZG](https://github.com/Eytan-ZG) |
+- **Sarah-Laure FOGWOUNG DJOUFACK** ([@Sarahlaure](https://github.com/Sarahlaure))
+- **Célina NGUEMFOUO NGOUMTSA** ([@nncelina](https://github.com/nncelina))
+- **Eytan ZAGHROUN** ([@Eytan-ZG](https://github.com/Eytan-ZG))
 
 ## Usage d'outils d'IA
 
-Nous avons utilisé un assistant d'IA (Claude) pour discuter de la méthode, relire le code et les textes, et mettre en forme le rapport en ligne. Les choix méthodologiques, les résultats et les textes ont été relus et validés par l'équipe, et le code est couvert par des tests automatiques.
+Nous avons utilisé un assistant d'IA (Claude) pour discuter de la méthode, relire le code et les textes, et mettre en forme le rapport en ligne et le tableau de bord. Les choix méthodologiques, les résultats et les textes ont été relus et validés par l'équipe.
