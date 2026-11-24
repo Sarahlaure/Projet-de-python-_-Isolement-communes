@@ -1,0 +1,21 @@
+# Données et calcul
+pandas>=2.0
+numpy>=1.24
+pyarrow>=14
+openpyxl>=3.1
+duckdb>=1.0
+scipy>=1.10
+requests>=2.31
+py7zr>=0.20          # décompression de l'archive IGN Admin Express (.7z)
+
+# Cartes
+geopandas>=0.14
+pyogrio>=0.7
+matplotlib>=3.7
+
+# Statistiques (ACP)
+scikit-learn>=1.3
+
+# Environnement de travail
+jupyterlab>=4.0
+pytest>=7.4

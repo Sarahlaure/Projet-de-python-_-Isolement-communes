@@ -5,7 +5,7 @@ CE QUE FAIT LE SCRIPT, EN BREF
     1. Télécharge 5 fichiers de l'INSEE (la BPE 2025 et sa documentation).
     2. Saute ceux qui sont déjà présents (on peut relancer sans risque).
     3. Vérifie que chaque fichier est bien ce qu'il prétend être (pas une page d'erreur).
-    4. Liste les fichiers à télécharger à la main (pas d'adresse stable) et dit s'ils manquent.
+    4. Télécharge et décompresse les contours IGN, la population et les revenus INSEE.
 """
 from __future__ import annotations
  
@@ -68,32 +68,7 @@ FICHIERS_AUTO: dict[str, dict[str, str]] = {
 }
  
  
-# ---------------------------------------------------------------------------------------
-# 3. LES FICHIERS À TÉLÉCHARGER À LA MAIN
-# ---------------------------------------------------------------------------------------
 
-FICHIERS_MANUELS: dict[str, dict[str, str]] = {
-    "population": {
-        "ou": "https://www.data.gouv.fr/datasets/populations-de-reference",
-        "choisir": "Population municipale 2023, en géographie 2025 (communes + arrondissements).",
-        "utilite": "Compter les HABITANTS concernés par l'éloignement (et non les communes) "
-                   "et calculer la densité.",
-    },
-    "contours": {
-        "ou": "https://geoservices.ign.fr/adminexpress",
-        "choisir": "Admin Express, édition COG 2025 : couches COMMUNE et "
-                   "ARRONDISSEMENT_MUNICIPAL.",
-        "utilite": "Donner à chaque commune un point de départ (son centre) pour les "
-                   "distances, et fabriquer les cartes. Les arrondissements sont "
-                   "indispensables : la BPE code Paris, Lyon et Marseille par arrondissement.",
-    },
-    "revenus": {
-        "ou": "https://www.insee.fr (chercher « Filosofi » niveau commune)",
-        "choisir": "Dernier millésime communal disponible (le millésime 2022 n'a pas été "
-                   "produit par l'INSEE).",
-        "utilite": "Savoir si l'isolement recoupe la pauvreté (revenu médian par commune).",
-    },
-}
  
  
 # ---------------------------------------------------------------------------------------
@@ -172,36 +147,113 @@ def telecharger_tout() -> list[str]:
     return echecs
  
  
-def afficher_fichiers_manuels() -> None:
-    """Explique les fichiers à télécharger à la main et signale ceux qui manquent."""
-    print("\nFichiers à télécharger À LA MAIN (à placer dans data/raw/) :")
-    for cle, infos in FICHIERS_MANUELS.items():
-        print(f"- {cle}")
-        print(f"    où      : {infos['ou']}")
-        print(f"    choisir : {infos['choisir']}")
-        print(f"    utilité : {infos['utilite']}")
- 
-    presents = sorted(p.name for p in RAW.iterdir()) if RAW.exists() else []
-    print(f"\nContenu actuel de data/raw/ : {presents}")
  
  
-def main() -> int:
-    """Point d'entrée : télécharge, signale les échecs, rappelle les fichiers manuels.
- 
-    Renvoie 0 si tout s'est bien passé, 1 s'il y a eu au moins un échec.
+# ---------------------------------------------------------------------------------------
+# 7. LES FICHIERS EXTERNES (IGN, POPULATION, REVENUS) : TÉLÉCHARGEMENT DEPUIS LE NOTEBOOK
+# ---------------------------------------------------------------------------------------
+# Ces trois fichiers étaient auparavant à récupérer à la main. Les adresses ci-dessous ont été
+# vérifiées (novembre 2026). Si une adresse change, il suffit de la modifier ici.
+#   - IGN Admin Express COG 2025 : archive .7z (~245 Mo) qui contient le GeoPackage (~1,1 Go).
+#   - INSEE, populations de référence 2023 (en vigueur au 1er janvier 2026) : ensemble.xlsx.
+#   - INSEE, Filosofi 2023 (API Melodi, jeu DS_FILOSOFI_CC) : archive .zip avec un CSV long.
+GPKG_IGN = "ADE-COG_4-0_GPKG_LAMB93_FXX-ED2025-01-01.gpkg"
+FICHIERS_EXTERNES: dict[str, dict[str, str]] = {
+    "contours": {
+        "url": "https://data.geopf.fr/telechargement/download/ADMIN-EXPRESS-COG/"
+               "ADMIN-EXPRESS-COG_4-0__GPKG_LAMB93_FXX_2025-01-01/"
+               "ADMIN-EXPRESS-COG_4-0__GPKG_LAMB93_FXX_2025-01-01.7z",
+        "archive": "admin_express_cog_2025.7z",
+        "cible": GPKG_IGN,
+        "contenu": "IGN Admin Express COG 2025 : contours des communes et arrondissements "
+                   "municipaux, et position des chefs-lieux (mairies).",
+    },
+    "population": {
+        "url": "https://www.insee.fr/fr/statistiques/fichier/8680726/ensemble.xlsx",
+        "cible": "population.xlsx",
+        "contenu": "INSEE, populations de référence 2023 (géographie 2025), feuille « Communes ».",
+    },
+    "revenus": {
+        "url": "https://api.insee.fr/melodi/file/DS_FILOSOFI_CC/DS_FILOSOFI_CC_2023_CSV_FR",
+        "archive": "filosofi_2023.zip",
+        "membre": "DS_FILOSOFI_CC_2023_data.csv",
+        "cible": "filosofi_2023.csv",
+        "contenu": "INSEE, Filosofi 2023 : niveau de vie médian (MED_SL) par commune.",
+    },
+}
+
+
+def _extraire(archive: Path, membre_cherche: str, destination: Path) -> None:
+    """Extrait d'une archive (.zip ou .7z) le fichier dont le nom se termine par `membre_cherche`."""
+    import shutil
+    import tempfile
+
+    with tempfile.TemporaryDirectory(dir=archive.parent) as dossier_tmp:
+        dossier_tmp = Path(dossier_tmp)
+        if archive.suffix == ".zip":
+            import zipfile
+            with zipfile.ZipFile(archive) as z:
+                z.extractall(dossier_tmp)
+        elif archive.suffix == ".7z":
+            try:
+                import py7zr
+            except ImportError as erreur:
+                raise ImportError("Le module py7zr est nécessaire pour ouvrir l'archive IGN : "
+                                  "pip install py7zr") from erreur
+            with py7zr.SevenZipFile(archive, mode="r") as z:
+                z.extractall(path=dossier_tmp)
+        else:
+            raise ValueError(f"Format d'archive inconnu : {archive.name}")
+        trouves = [p for p in dossier_tmp.rglob("*") if p.name.endswith(membre_cherche)]
+        if not trouves:
+            raise FileNotFoundError(f"{membre_cherche} introuvable dans {archive.name}")
+        shutil.move(str(trouves[0]), destination)
+
+
+def telecharger_externes(garder_archives: bool = False) -> list[str]:
+    """Télécharge (et décompresse si besoin) les contours IGN, la population et les revenus.
+
+    Comme pour la BPE, un fichier déjà présent dans data/raw/ n'est pas retéléchargé.
+    Renvoie la liste des fichiers en échec.
     """
-    echecs = telecharger_tout()
-    afficher_fichiers_manuels()
+    RAW.mkdir(parents=True, exist_ok=True)
+    echecs: list[str] = []
+    print("Téléchargements externes (IGN, population, revenus) :")
+    for cle, infos in FICHIERS_EXTERNES.items():
+        cible = RAW / infos["cible"]
+        print(f"- {cle} : {infos['contenu']}")
+        if cible.exists() and cible.stat().st_size > 0:
+            print(f"  déjà présent : {cible.name}")
+            continue
+        try:
+            if "archive" in infos:
+                archive = RAW / infos["archive"]
+                telecharger(infos["url"], archive)
+                print(f"  décompression de {archive.name} ...")
+                _extraire(archive, infos.get("membre", infos["cible"]), cible)
+                if not garder_archives:
+                    archive.unlink()
+            else:
+                telecharger(infos["url"], cible)
+            print(f"    ok : {cible.name} ({cible.stat().st_size / 1e6:.1f} Mo)")
+        except Exception as erreur:  # noqa: BLE001 : on continue avec les autres fichiers
+            echecs.append(cle)
+            print(f"  ÉCHEC : {erreur}")
+    return echecs
+
+
+def tout_telecharger() -> int:
+    """BPE + documentation + fichiers externes. Renvoie 0 si tout est présent, 1 sinon."""
+    echecs = telecharger_tout() + telecharger_externes()
     if echecs:
-        print(f"\nÉchecs : {echecs}. Relancez, ou téléchargez-les à la main depuis la page INSEE.")
+        print(f"\nÉchecs : {echecs}. Relancez la cellule (les fichiers déjà présents sont conservés).")
         return 1
-    print("\nTéléchargements automatiques terminés.")
+    print("\nTous les fichiers sont dans data/raw/.")
     return 0
- 
- 
+
+
 # Ce bloc ne s'exécute que si on lance « python src/download.py » directement.
 # Quand le notebook fait « import download », il est ignoré : on appelle alors
-# download.main() nous-mêmes.
+# download.tout_telecharger() nous-mêmes.
 if __name__ == "__main__":
-    sys.exit(main())
-
+    sys.exit(tout_telecharger())
