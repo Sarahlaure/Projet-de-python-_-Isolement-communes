@@ -4,11 +4,9 @@
 
 Projet du cours **Python pour la data science** (ENSAE Paris, 2ᵉ année). Chargé de TD : M. DEREPAS Alban.
 
-[Rapport en ligne](https://sarahlaure.github.io/isolement-communes-livre/) · [Notebook](rapport.ipynb) · [Tableau de bord](dashboard/index.html) ·
-
 Nous mesurons, pour chacune des 34 788 communes et arrondissements de France métropolitaine, la distance à 19 services de base (boulangerie, pharmacie, médecin, école, poste, gare, urgences, maternité…) à partir de la Base permanente des équipements (BPE) 2025 de l'INSEE. Nous résumons ces distances par **trois indices d'isolement** (méthodes A, B et C), que nous cartographions, comparons entre eux et mettons en relation avec la densité de population et le revenu.
 
-**Le rapport complet est en ligne : [sarahlaure.github.io/isolement-communes-livre](https://sarahlaure.github.io/isolement-communes-livre/).** Le notebook [`rapport.ipynb`](rapport.ipynb) contient l'analyse exécutable, et le dossier [`dashboard/`](dashboard/) un tableau de bord interactif.
+Le notebook [`rapport.ipynb`](rapport.ipynb) contient l'analyse exécutable, il présente la démarche et affiche les résultats, tandis que les fonctions de calcul qu'il appelle sont toutes définies dans le dossier src/. Le dossier dashboard/ contient un tableau de bord interactif et **le rapport complet est en ligne : [sarahlaure.github.io/isolement-communes-livre](https://sarahlaure.github.io/isolement-communes-livre/).** 
 
 ## Question de recherche et hypothèses
 
