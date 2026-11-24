@@ -49,19 +49,19 @@ Toutes les données sont téléchargées par [`src/download.py`](src/download.py
 ```
 .
 ├── README.md
-├── requirements.txt        bibliothèques nécessaires (dont py7zr)
-├── rapport.ipynb           le rapport : appelle src/ et raconte l'analyse
+├── requirements.txt        bibliothèques nécessaires 
+├── rapport.ipynb           le rapport : appelle src/ et deroule l'analyse
 ├── src/
 │   ├── download.py         télécharge toutes les données dans data/raw/
 │   ├── prepare_bpe.py      filtre la BPE sur le panier, écrit data/interim/
 │   ├── communes.py         table des communes (centroïde, chef-lieu, surface, population)
 │   ├── distances.py        présence des services et distances
-│   ├── indice.py           indices, grille experte, besoins
+│   ├── indice.py           indices, grille, besoins
 │   ├── descriptif.py       statistiques descriptives
 │   └── analyse.py          revenu, corrélations, tests
 ├── figures/                figures enregistrées par le notebook
 ├── dashboard/
-│   └── index.html          tableau de bord interactif (un seul fichier, hors ligne)
+│   └── index.html          tableau de bord interactif 
 └── data/
     ├── raw/                données brutes, jamais modifiées (non versionnées)
     ├── interim/            données nettoyées (non versionnées)
