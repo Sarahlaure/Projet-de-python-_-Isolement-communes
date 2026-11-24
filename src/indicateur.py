@@ -186,7 +186,7 @@ def table_poids() -> pd.DataFrame:
 
 
 #Le point important ici, l'indicateur utilisera la distance entre la ville et le service le plus proche si il n'est pas
-# disponible dans la ville. Pour cela il faut choisir un point de référence pour la ville, j'ai choisi la mairie.
+## disponible dans la ville. Pour cela il faut choisir un point de référence pour la ville, j'ai choisi la mairie.
 
 def charger_communes() -> pd.DataFrame:
     """Liste des communes et arrondissements municipaux de métropole (geo.api.gouv.fr).
